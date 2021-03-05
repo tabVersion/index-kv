@@ -10,7 +10,7 @@ import (
 
 type Node struct {
 	key    uint32
-	value  *chunk.Chunk
+	Value  *chunk.Chunk
 	left   *Node
 	right  *Node
 	parent *Node
@@ -74,7 +74,7 @@ func insertNode(s Splay, key uint32, value *chunk.Chunk, root *Node) *Node {
 	if root == nil {
 		n := new(Node)
 		n.key = key
-		n.value = value
+		n.Value = value
 		s.SetRoot(n)
 		return s.GetRoot()
 	}
@@ -84,7 +84,7 @@ func insertNode(s Splay, key uint32, value *chunk.Chunk, root *Node) *Node {
 		if root.left == nil {
 			root.left = new(Node)
 			root.left.key = key
-			root.left.value = value
+			root.left.Value = value
 			root.left.parent = root
 			return root.left
 		} else {
@@ -94,7 +94,7 @@ func insertNode(s Splay, key uint32, value *chunk.Chunk, root *Node) *Node {
 		if root.right == nil {
 			root.right = new(Node)
 			root.right.key = key
-			root.right.value = value
+			root.right.Value = value
 			root.right.parent = root
 			return root.right
 		} else {
