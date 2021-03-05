@@ -125,6 +125,9 @@ func splay(s Splay, n *Node) {
 func Access(s Splay, key uint32) *Node {
 	log.Printf("[splay.splay.Access] access key: %d", key)
 	n := FindNode(s, key, s.GetRoot())
+	if n == nil {
+		log.Fatalf("[splay.splay.Access] node not found key: %v\n", key)
+	}
 	splay(s, n)
 	return n
 }

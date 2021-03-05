@@ -5,11 +5,12 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 )
 
-var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_!@#$%^&*()-"
 
@@ -25,6 +26,7 @@ func genData() ([]string, []string) {
 	mockKey := make([]string, 0)
 	mockValue := make([]string, 0)
 	dataFile, err := os.OpenFile(DATAFILE, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0777)
+	defer dataFile.Close()
 	if err != nil {
 		log.Fatalf("[index.index_test.genData] open data file err: %v\n", err)
 	}
@@ -53,6 +55,36 @@ func genData() ([]string, []string) {
 	return mockKey, mockValue
 }
 
-func TestIndex(t *testing.T) {
+func BenchmarkNew(b *testing.B) {
 	genData()
+	log.Printf("[index.index_test.BenchmarkNew] genData done.")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		New(true, true)
+	}
+	err := os.Remove(DATAFILE)
+	if err != nil {
+		log.Printf("[index.index_test.BenchmarkNew] remove data file err: %v\n", err)
+	}
+	for i := 0; i < 1000; i++ {
+		err = os.Remove(strconv.Itoa(i) + "_chunk")
+		if err != nil {
+			log.Printf("[index.index_test.BenchmarkNew] remove chunk err: %v\n", err)
+		}
+	}
+}
+
+func TestIndex(t *testing.T) {
+	mockKey, mockValue := genData()
+	idx := New(true, true)
+	idx.Query(mockKey[:10], 0)
+	for i, value := range mockValue[:10] {
+		if idx.queryAns[int32(i)] != value {
+			log.Fatalf("[index.index_test.TestMain] query error: res: %v, truth: %v\n",
+				idx.queryAns[int32(i)], value)
+		}
+	}
+}
+
+func TestIndexGet(t *testing.T) {
 }

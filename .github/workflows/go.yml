@@ -19,4 +19,4 @@ jobs:
         go-version: 1.15
 
     - name: Test
-      run: cd ./chunk && go test && cd ../cache && go test && cd ../splay && go test
+      run: cd ./chunk && go test && cd ../cache && go test && cd ../splay && go test && cd ../index && go test

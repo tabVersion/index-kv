@@ -121,6 +121,7 @@ func New(useLru bool, useSplay bool) Index {
 				log.Fatalf("[index.index.New] chunk append key: %v, value: %v ,err: %v\n",
 					keyHash, offset, err)
 			}
+			//_ = dataChunk.Close()
 			cm.Unlock()
 		}(keyHash%CHUNK_NUM, keyHash, localPos)
 
@@ -142,9 +143,9 @@ func New(useLru bool, useSplay bool) Index {
 	}
 }
 
-func (i *Index) Query(keys *[]string, startIdx int32) {
+func (i *Index) Query(keys []string, startIdx int32) {
 	i.routinePool = make(chan struct{}, MAX_ROUTINE_LIMIT)
-	for idx, key := range *keys {
+	for idx, key := range keys {
 		i.routinePool <- struct{}{}
 		go i.Index(key, int32(idx)+startIdx)
 	}
