@@ -12,11 +12,13 @@ const (
 	MIN_KEY_SIZE      = 1
 	MAX_KEY_SIZE      = 1024
 	MIN_VALUE_SIZE    = 1
-	MAX_VALUE_SIZE    = 1048576 // 2^20
+	MAX_VALUE_SIZE    = 1024 // 2^20
 	MAX_ROUTINE_LIMIT = 1000
 
 	CACHE_SIZE = 1000
 	CHUNK_NUM  = 1000
+
+	NUM_KV = 1e6
 )
 
 func Hash(key []byte) uint32 {
