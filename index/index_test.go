@@ -80,7 +80,7 @@ func TestIndex(t *testing.T) {
 	idx.Query(mockKey[:10], 0)
 	for i, value := range mockValue[:10] {
 		if idx.queryAns[int32(i)] != value {
-			log.Fatalf("[index.index_test.TestMain] query error: res: %v, truth: %v\n",
+			log.Fatalf("[index.index_test.TestIndex] query error: res: %v, truth: %v\n",
 				idx.queryAns[int32(i)], value)
 		}
 	}

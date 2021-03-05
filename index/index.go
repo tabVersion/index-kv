@@ -147,13 +147,13 @@ func (i *Index) Query(keys []string, startIdx int32) {
 	i.routinePool = make(chan struct{}, MAX_ROUTINE_LIMIT)
 	for idx, key := range keys {
 		i.routinePool <- struct{}{}
+		i.wg.Add(1)
 		go i.Index(key, int32(idx)+startIdx)
 	}
 	i.wg.Wait()
 }
 
 func (i *Index) Index(key string, idx int32) (err error) {
-	i.wg.Add(1)
 	defer func() {
 		<-i.routinePool
 		i.wg.Done()
@@ -172,7 +172,7 @@ func (i *Index) Index(key string, idx int32) (err error) {
 	var dataChunk *chunk.Chunk
 	if i.useSplay {
 		i.splayMutex.Lock()
-		dataNode := splay.Access(i.SplayRoot, keyHash)
+		dataNode := splay.Access(i.SplayRoot, keyHash%CHUNK_NUM)
 		i.splayMutex.Unlock()
 		if dataNode == nil {
 			log.Printf("[] cannot find chunk %d for key %v", keyHash, key)
