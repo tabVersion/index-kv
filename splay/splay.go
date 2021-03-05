@@ -9,7 +9,7 @@ import (
 )
 
 type Node struct {
-	key    int
+	key    uint32
 	value  *chunk.Chunk
 	left   *Node
 	right  *Node
@@ -19,7 +19,7 @@ type Node struct {
 type Splay interface {
 	SetRoot(n *Node)
 	GetRoot() *Node
-	Ord(key1, key2 int) int
+	Ord(key1, key2 uint32) int
 }
 
 type Tree struct {
@@ -34,7 +34,7 @@ func (t *Tree) SetRoot(root *Node) {
 	t.root = root
 }
 
-func (t *Tree) Ord(key1 int, key2 int) int {
+func (t *Tree) Ord(key1 uint32, key2 uint32) int {
 	if key1 < key2 {
 		return 0
 	} else if key1 == key2 {
@@ -44,7 +44,7 @@ func (t *Tree) Ord(key1 int, key2 int) int {
 	}
 }
 
-func FindNode(s Splay, key int, root *Node) *Node {
+func FindNode(s Splay, key uint32, root *Node) *Node {
 	if root == nil {
 		return nil
 	} else {
@@ -60,7 +60,7 @@ func FindNode(s Splay, key int, root *Node) *Node {
 	}
 }
 
-func Insert(s Splay, key int, value *chunk.Chunk) error {
+func Insert(s Splay, key uint32, value *chunk.Chunk) error {
 	if FindNode(s, key, s.GetRoot()) != nil {
 		log.Fatalf("[splay.splay.Insert] key %v alright exist", key)
 	}
@@ -70,7 +70,7 @@ func Insert(s Splay, key int, value *chunk.Chunk) error {
 	return nil
 }
 
-func insertNode(s Splay, key int, value *chunk.Chunk, root *Node) *Node {
+func insertNode(s Splay, key uint32, value *chunk.Chunk, root *Node) *Node {
 	if root == nil {
 		n := new(Node)
 		n.key = key
@@ -122,7 +122,7 @@ func splay(s Splay, n *Node) {
 	}
 }
 
-func Access(s Splay, key int) *Node {
+func Access(s Splay, key uint32) *Node {
 	log.Printf("[splay.splay.Access] access key: %d", key)
 	n := FindNode(s, key, s.GetRoot())
 	splay(s, n)
@@ -299,16 +299,16 @@ func printNode(n *Node, depth int) {
 	if n == nil {
 		return
 	}
-	fmt.Println(strings.Repeat("-", 2 * depth), n.key)
-	printNode(n.left, depth + 1)
-	printNode(n.right, depth + 1)
+	fmt.Println(strings.Repeat("-", 2*depth), n.key)
+	printNode(n.left, depth+1)
+	printNode(n.right, depth+1)
 }
 
 func Preorder(root *Node, buf *string) {
 	if root == nil {
 		return
 	}
-	*buf += strconv.Itoa(root.key) + "-"
+	*buf += strconv.Itoa(int(root.key)) + "-"
 	Preorder(root.left, buf)
 	Preorder(root.right, buf)
 }

@@ -8,8 +8,8 @@ import (
 
 func TestSplay(t *testing.T) {
 	splayTree := new(Tree)
-	for i := 0; i < 20; i ++ {
-		err := Insert(splayTree, rand.Int() % 1000, nil)
+	for i := 0; i < 20; i++ {
+		err := Insert(splayTree, rand.Uint32()%10000, nil)
 		if err != nil {
 			fmt.Println(err)
 		} else {
@@ -22,9 +22,9 @@ func TestSplay(t *testing.T) {
 func TestTree(t *testing.T) {
 	splayTree := new(Tree)
 	var idx []int
-	for i := 0; i < 20; i ++ {
+	for i := 0; i < 20; i++ {
 		idx = append(idx, i)
-		err := Insert(splayTree, i, nil)
+		err := Insert(splayTree, uint32(i), nil)
 		if err != nil {
 			fmt.Println(err)
 		}
