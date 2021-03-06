@@ -17,8 +17,9 @@ type Index struct {
 	splayMutex sync.Mutex
 	chunkMap   map[uint32]*chunk.Chunk
 	//lruMutex sync.RWMutex
-	wg          sync.WaitGroup
 	queryAns    map[int32]string
+	queryMutex sync.Mutex
+	chunkMutex map[uint32]*sync.Mutex
 	useLru      bool
 	useSplay    bool
 	routinePool chan struct{}
@@ -72,12 +73,12 @@ func New(useLru bool, useSplay bool) Index {
 		keyHash := Hash(key)
 
 		routinePool <- struct{}{}
-		go func(chunkId uint32, keyHash uint32, offset int64) {
-			wg.Add(1)
-			defer func() {
+		wg.Add(1)
+		go func(chunkId uint32, keyHash uint32, offset int64, wg *sync.WaitGroup) {
+			defer func(wg *sync.WaitGroup) {
 				<-routinePool
 				wg.Done()
-			}()
+			}(wg)
 			buildMutex.Lock()
 			cm, exist := chunkMutex[chunkId]
 			if !exist {
@@ -110,6 +111,7 @@ func New(useLru bool, useSplay bool) Index {
 				if !exist {
 					c, _ := chunk.New(int(chunkId))
 					dataChunk = &c
+					chunkMap[chunkId] = dataChunk
 				} else {
 					dataChunk = c
 				}
@@ -123,8 +125,8 @@ func New(useLru bool, useSplay bool) Index {
 			}
 			//_ = dataChunk.Close()
 			cm.Unlock()
-		}(keyHash%CHUNK_NUM, keyHash, localPos)
-
+		}(keyHash%CHUNK_NUM, keyHash, localPos, &wg)
+		wg.Wait()
 		curPos, err = dataSource.Seek(0, 1)
 		if err != nil {
 			log.Fatalf("[index.index.New] load data source pos err: %v\n", err)
@@ -135,8 +137,9 @@ func New(useLru bool, useSplay bool) Index {
 		SplayRoot:   splayRoot,
 		splayMutex:  sync.Mutex{},
 		chunkMap:    chunkMap,
-		wg:          wg,
+		chunkMutex: chunkMutex,
 		queryAns:    queryAns,
+		queryMutex: sync.Mutex{},
 		useLru:      useLru,
 		useSplay:    useSplay,
 		routinePool: routinePool,
@@ -145,26 +148,30 @@ func New(useLru bool, useSplay bool) Index {
 
 func (i *Index) Query(keys []string, startIdx int32) {
 	i.routinePool = make(chan struct{}, MAX_ROUTINE_LIMIT)
+	wg := sync.WaitGroup{}
 	for idx, key := range keys {
 		i.routinePool <- struct{}{}
-		i.wg.Add(1)
-		go i.Index(key, int32(idx)+startIdx)
+		wg.Add(1)
+		go i.Index(key, int32(idx)+startIdx, &wg)
 	}
-	i.wg.Wait()
+	wg.Wait()
 }
 
-func (i *Index) Index(key string, idx int32) (err error) {
-	defer func() {
+func (i *Index) Index(key string, idx int32, wg *sync.WaitGroup) (err error) {
+	defer func(wg *sync.WaitGroup) {
 		<-i.routinePool
-		i.wg.Done()
-	}()
+		wg.Done()
+	}(wg)
 
 	if i.useLru {
 		//i.lruMutex.RLock()
 		vCache, success := i.LRUCache.Get(key)
 		//i.lruMutex.RUnlock()
 		if success {
+			log.Printf("[index.index.Index] cache hit key: %v, value: %v\n", key, vCache)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = vCache
+			i.queryMutex.Unlock()
 			return nil
 		}
 	}
@@ -172,28 +179,41 @@ func (i *Index) Index(key string, idx int32) (err error) {
 	var dataChunk *chunk.Chunk
 	if i.useSplay {
 		i.splayMutex.Lock()
-		dataNode := splay.Access(i.SplayRoot, keyHash%CHUNK_NUM)
+		dataNode := splay.Access(i.SplayRoot, keyHash % CHUNK_NUM)
 		i.splayMutex.Unlock()
 		if dataNode == nil {
-			log.Printf("[] cannot find chunk %d for key %v", keyHash, key)
+			log.Printf("[index.index.Index] cannot find chunk %d for key %v", keyHash, key)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = ""
+			i.queryMutex.Unlock()
 			return errors.New("not found: key: " + key)
 		}
 		dataChunk = dataNode.Value
 	} else {
-		dataChunk = i.chunkMap[keyHash]
+		dataChunk = i.chunkMap[keyHash % CHUNK_NUM]
 	}
+	cm, exist := i.chunkMutex[keyHash % CHUNK_NUM]
+	if !exist {
+		log.Fatalf("[index.index.Index] chunkMutex not found, chunk: %v", keyHash % CHUNK_NUM)
+	}
+	cm.Lock()
 	offsets, err := dataChunk.Index(keyHash)
+	cm.Unlock()
 	if err != nil {
-		log.Printf("[chunk.index.Index] offset not found: key: %v, chunk: %v, err: %v\n", key, keyHash, err)
+		log.Printf("[chunk.index.Index] offset not found: key: %v, chunk: %v, err: %v\n",
+			key, keyHash % CHUNK_NUM, err)
+		i.queryMutex.Lock()
 		i.queryAns[idx] = ""
+		i.queryMutex.Unlock()
 		return err
 	}
 
 	allData, err := os.OpenFile(DATAFILE, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {
 		log.Printf("[chunk.index.Index] open all data file err: %v\n", err)
+		i.queryMutex.Lock()
 		i.queryAns[idx] = ""
+		i.queryMutex.Unlock()
 		return err
 	}
 	defer allData.Close()
@@ -203,28 +223,38 @@ func (i *Index) Index(key string, idx int32) (err error) {
 		readKeySize, readKey, err := GetSizeAndContent(allData)
 		if err != nil {
 			log.Printf("[index.index.Index] get content key err: %v\n", err)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = ""
+			i.queryMutex.Unlock()
 			return err
 		}
 		if readKeySize < MIN_KEY_SIZE || readKeySize > MAX_KEY_SIZE {
 			log.Printf("[index.index.Index] key size error: %v\n", readKeySize)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = ""
+			i.queryMutex.Unlock()
 			return errors.New("key size error")
 		}
 		readValueSize, readValue, err := GetSizeAndContent(allData)
 		if err != nil {
 			log.Printf("[index.index.Index] get content value err: %v\n", err)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = ""
+			i.queryMutex.Unlock()
 			return err
 		}
 		if readValueSize < MIN_VALUE_SIZE || readValueSize > MAX_VALUE_SIZE {
 			log.Printf("[index.index.Index] value size error: %v\n", readKeySize)
+			i.queryMutex.Lock()
 			i.queryAns[idx] = ""
+			i.queryMutex.Unlock()
 			return errors.New("value size error")
 		}
 
 		if string(readKey) == key {
+			i.queryMutex.Lock()
 			i.queryAns[idx] = string(readValue)
+			i.queryMutex.Unlock()
 			if i.useLru {
 				//i.lruMutex.Lock()
 				i.LRUCache.Add(key, string(readValue))
