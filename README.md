@@ -14,7 +14,7 @@ Allow preprocessing of the data file, but the preprocessing time is factored int
 
 ## Solution
 
-* **Zipf's Law**: Zipf's law refers to the fact that for many types of data studied in the physical and social sciences, the rank-frequency distribution is an inverse relation. The law indicates that the test data is highly data localized, i.e., a small amount of data constitutes the majority of the test cases. In this repo I used golang's `rand.Zipf` to complete the following experiments.
+* **Zipf's Law**: Zipf's law refers to the fact that for many types of data studied in the physical and social sciences, the rank-frequency distribution is an inverse relation. The law indicates that the test data is highly data localized, i.e., a small amount of data constitutes the majority of the test cases. In this repo I used golang's `rand.Zipf` to complete the following experiments, in which `s=2` and `v=2`.
   
 * **LRU Cache**: Because the query data is localized, it is obvious that the query should be accelerated using LRU cache.
 * **Hash & Sharding**  `(hash, offset)`
@@ -44,10 +44,12 @@ The following data were tested under the use of 1e6 randomly generated KV pairs(
 
 |Test Flag|Time Per Query (s)|Bytes Processed Per Query (B)|Allocations Per Query|
 |:---:|:---:|:---:|:---:|
-|LRU-Splay|9.4858e-5|1462|7|
-|LRU-HashMap|1.09869e-4|1679|7|
-|Splay|1.79937e-4|2955|27|
-|HashMap|2.08686e-4|3998|30|
+|LRU-Splay|1.30351e-4|1609|7|
+|LRU-HashMap|1.09869e-4|1679|8|
+|Splay|3.422613e-3|2952|37|
+|HashMap|2.17737e-4|3229|26|
+
+*approximate LRU cache hit: 41%*
 
 * benchmark for fetching one item with use builtin `map` and splay
 
