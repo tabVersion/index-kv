@@ -56,7 +56,8 @@ func (chunk *Chunk) Index(keyHash uint32) (offsets []uint64, err error) {
 		buf := make([]byte, 8)
 		_, err = chunk.file.Read(buf)
 		if err != nil {
-			log.Printf("[chunk.chunk.Index] read file err: %v\n", err)
+			log.Printf("[chunk.chunk.Index] read file err: %v, chunk: %v, keyHash: %v\n",
+				err, chunk.id, keyHash)
 			return offsets, err
 		}
 		hash, err := binary.ReadUvarint(bytes.NewBuffer(buf))
@@ -68,7 +69,7 @@ func (chunk *Chunk) Index(keyHash uint32) (offsets []uint64, err error) {
 			offsetRec := make([]byte, 8)
 			_, err = chunk.file.Read(offsetRec)
 			if err != nil {
-				log.Printf("[chunk.chunk.Index] chunk buffer2 err: %v\n", err)
+				log.Printf("[chunk.chunk.Index] read offset buf err: %v, chunk: %v\n", err, chunk.id)
 				return offsets, err
 			}
 			newOffset, _ := binary.ReadUvarint(bytes.NewBuffer(offsetRec))
